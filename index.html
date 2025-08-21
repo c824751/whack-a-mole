@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>打地鼠</title>
+    <style>
+        .game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            background: #f0f0f0;
+            margin: 20px auto;
+            border: 2px solid #333;
+        }
+
+        .dot {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: gray;
+            transition: background-color 0.3s;
+        }
+
+        .square {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            bottom: 20px;
+            background: gray;
+            transition: background-color 0.3s;
+        }
+
+        #leftSquare {
+            left: 20px;
+        }
+
+        #rightSquare {
+            right: 20px;
+        }
+
+        #timer {
+            text-align: center;
+            font-size: 24px;
+            margin: 10px;
+        }
+
+        #startBtn {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="timer">剩餘時間: 10:00</div>
+    <div class="game-container" id="gameContainer"></div>
+    <button id="startBtn">開始遊戲</button>
+
+    <script>
+        const GAME_DURATION = 600; // 10分鐘 = 600秒
+        const COLORS = ['blue', 'red', 'white', 'yellow', 'green'];
+        const AUDIO = {
+            high: new Audio('https://www.soundjay.com/buttons/sounds/beep-02.mp3'),
+            low: new Audio('https://www.soundjay.com/buttons/sounds/beep-03.mp3')
+        };
+
+        class Game {
+            constructor() {
+                this.dots = [];
+                this.changeInterval = 500; // 初始變化間隔 1秒
+                this.timeLeft = GAME_DURATION;
+                this.isRunning = false;
+                this.colorChangeTimer = null;
+                this.gameTimer = null;
+            }
+
+            init_game() {
+                const container = document.getElementById('gameContainer');
+                container.innerHTML = ''; // 清空容器
+                this.dots = [];
+
+                // 初始化 10 個點
+                for (let i = 0; i < 10; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'dot';
+                    // 設置位置：上五下五
+                    dot.style.width = '70px';  // 增加寬度
+                    dot.style.height = '70px'; // 增加高度
+                    dot.style.top = i < 5 ? '85px' : '285px';  // 根據70px高度調整位置
+                    dot.style.left = `${(i % 5) * 150 + 70}px`;  // 根據70px寬度調整間距
+                    this.dots.push(dot);
+                    container.appendChild(dot);
+                }
+
+                // 初始化兩個方塊
+                const leftSquare = document.createElement('div');
+                leftSquare.id = 'leftSquare';
+                leftSquare.className = 'square';
+                leftSquare.style.width = '50px';
+                leftSquare.style.height = '100px';
+                leftSquare.style.left = '50px';
+                leftSquare.style.top = '450px';
+                container.appendChild(leftSquare);
+
+                const rightSquare = document.createElement('div');
+                rightSquare.id = 'rightSquare';
+                rightSquare.className = 'square';
+                rightSquare.style.width = '50px';
+                rightSquare.style.height = '100px';
+                rightSquare.style.right = '50px';
+                rightSquare.style.top = '450px';
+                container.appendChild(rightSquare);
+            }
+
+            start_game() {
+                if (this.isRunning) return;
+
+                this.init_game();
+                this.isRunning = true;
+                this.timeLeft = GAME_DURATION;
+                this.changeInterval = 1000;
+                let minutesPassed = 0;
+
+                // 遊戲主計時器
+                this.gameTimer = setInterval(() => {
+                    this.timeLeft--;
+                    this.update_timer();
+
+                    // 每分鐘加快速度
+                    if (this.timeLeft % 60 === 0) {
+                        minutesPassed++;
+                        this.changeInterval = Math.max(100, 1000 - (minutesPassed * 90));
+                        this.restart_color_changes();
+                    }
+
+                    if (this.timeLeft <= 0) {
+                        this.end_game();
+                    }
+                }, 1000);
+
+                this.start_color_changes();
+            }
+
+            start_color_changes() {
+                const change_colors = () => {
+                    if (!this.isRunning) return;
+
+                    if (Math.random() > 0.4) {
+                        // 變更點的顏色 - 每個位置和顏色機率相等
+                        const dotIndex = Math.floor(Math.random() * this.dots.length);
+                        const colorIndex = Math.floor(Math.random() * COLORS.length);
+                        const randomDot = this.dots[dotIndex];
+                        const randomColor = COLORS[colorIndex];
+                        randomDot.style.backgroundColor = randomColor;
+
+                        // 0.1秒後恢復灰色
+                        setTimeout(() => {
+                            if (this.isRunning) {
+                                randomDot.style.backgroundColor = 'gray';
+                            }
+                        }, 500);
+                    } else if(Math.random() > 0.2) {
+                        // 變更方塊顏色
+                        const square = Math.random() > 0.5 ? 'leftSquare' : 'rightSquare';
+                        document.getElementById(square).style.backgroundColor = 'white';
+
+                        setTimeout(() => {
+                            if (this.isRunning) {
+                                document.getElementById(square).style.backgroundColor = 'gray';
+                            }
+                        }, 500);
+                    } else {
+                        if(Math.random() > 0.5){
+                            AUDIO.high.play();
+                        }else{
+                            AUDIO.low.play();
+                        }
+                    }
+
+                    this.colorChangeTimer = setTimeout(change_colors, this.changeInterval);
+                };
+
+                change_colors();
+            }
+
+            restart_color_changes() {
+                if (this.colorChangeTimer) {
+                    clearTimeout(this.colorChangeTimer);
+                }
+                this.start_color_changes();
+            }
+
+            update_timer() {
+                const minutes = Math.floor(this.timeLeft / 60);
+                const seconds = this.timeLeft % 60;
+                document.getElementById('timer').textContent =
+                    `剩餘時間: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            end_game() {
+                this.isRunning = false;
+                clearInterval(this.gameTimer);
+                if (this.colorChangeTimer) {
+                    clearTimeout(this.colorChangeTimer);
+                }
+                alert('遊戲結束！');
+            }
+        }
+
+        // 初始化遊戲
+        const game = new Game();
+
+        // 綁定開始按鈕
+        document.getElementById('startBtn').addEventListener('click', () => {
+            game.start_game();
+        });
+    </script>
+</body>
+</html>
